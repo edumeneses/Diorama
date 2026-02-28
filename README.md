@@ -2,6 +2,8 @@
 
 > *Imagining a World* — a spatial computing interface for turning images into explorable 3D worlds.
 
+![How To Frame It for Maximum Impact](frontend/public/chatgpt-moment.png)
+
 ## Vision
 
 OpenMarble is an experiment in what a personal spatial OS might look like if it were built around generative 3D. Upload a photo, and OpenMarble reconstructs it as a navigable Gaussian Splat — viewable, shareable, and editable right in the browser. The interface takes its aesthetic cues from visionOS: glassmorphism, depth, spring animations, and a window-based app model.
