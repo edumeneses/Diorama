@@ -1,0 +1,371 @@
+---
+title: Router
+description: A custom routing system that combines React Navigation patterns with SwiftUI's Ornament and Stack behaviors
+---
+
+# Router
+
+A custom routing system that combines React Navigation patterns with SwiftUI's Ornament and Stack behaviors, designed specifically for Vision OS applications.
+
+## Overview
+
+The Vision UI Router provides a comprehensive navigation solution that merges the declarative approach of React Navigation with the spatial design principles of SwiftUI's Ornament and Stack navigators. It's built on top of Next.js catch-all routes and uses Radix UI primitives for accessibility and performance.
+
+## Key Features
+
+- **React Navigation Patterns**: Familiar API similar to React Navigation
+- **SwiftUI Ornament Behavior**: Floating navigation elements that maintain position
+- **Stack Navigation**: Hierarchical navigation with back button support
+- **Vision OS Integration**: Window controls and spatial design
+- **TypeScript Support**: Full type safety for route configurations
+- **Next.js Integration**: Works seamlessly with Next.js routing
+
+## Basic Setup
+
+### 1. Router Provider
+
+Wrap your application with the `RouterProvider`:
+
+```tsx
+import { RouterProvider, NavigationContainer } from "@/components/core/router";
+
+export default function App() {
+  return (
+    <RouterProvider>
+      <NavigationContainer>
+        {/* Your navigation structure */}
+      </NavigationContainer>
+    </RouterProvider>
+  );
+}
+```
+
+### 2. Ornament Navigator (Tab-based)
+
+The Ornament navigator creates floating tab bars similar to SwiftUI's Ornament:
+
+```tsx
+import { Ornament } from "@/components/core/router";
+
+function MyApp() {
+  return (
+    <Ornament defaultRoute="home">
+      <Ornament.Screen
+        name="home"
+        path="/home"
+        component={HomeScreen}
+        icon={<HomeIcon />}
+        title="Home"
+      />
+      <Ornament.Screen
+        name="photos"
+        path="/photos"
+        component={PhotosScreen}
+        icon={<PhotosIcon />}
+        title="Photos"
+      />
+      <Ornament.Screen
+        name="settings"
+        path="/settings"
+        component={SettingsScreen}
+        icon={<SettingsIcon />}
+        title="Settings"
+      />
+    </Ornament>
+  );
+}
+```
+
+### 3. Stack Navigator
+
+The Stack navigator provides hierarchical navigation with headers:
+
+```tsx
+import { Stack } from "@/components/core/router";
+
+function PhotosStack() {
+  return (
+    <Stack defaultRoute="photos" headerShown={true}>
+      <Stack.Screen
+        name="photos"
+        path="/photos"
+        component={PhotosScreen}
+        options={{
+          title: "Photos",
+          headerShown: true,
+        }}
+      />
+      <Stack.Screen
+        name="detail"
+        path="/photos/detail"
+        component={PhotoDetailScreen}
+        options={{
+          title: "Photo Details",
+          headerShown: true,
+        }}
+      />
+    </Stack>
+  );
+}
+```
+
+## API Reference
+
+### RouterProvider
+
+The root provider that manages navigation state.
+
+```tsx
+type RouterProviderProps = {
+  children: React.ReactNode;
+  initialPath?: string;
+};
+```
+
+### NavigationContainer
+
+Container for navigation content.
+
+```tsx
+type NavigationContainerProps = {
+  children: React.ReactNode;
+  className?: string;
+};
+```
+
+### Ornament
+
+Tab-based navigator with floating ornament behavior.
+
+```tsx
+type OrnamentProps = {
+  children: React.ReactNode;
+  defaultRoute?: string;
+  material?: boolean | { thickness?: GlassThickness };
+  className?: string;
+  contentClassName?: string;
+  orientation?: "vertical" | "horizontal";
+  position?: "left" | "right" | "top" | "bottom";
+  floating?: boolean;
+};
+```
+
+### Ornament.Screen
+
+Configuration for individual tab screens.
+
+```tsx
+type OrnamentScreenProps = {
+  name: string;
+  path: string;
+  component?: React.ComponentType<any>;
+  icon?: React.ReactNode;
+  title?: string;
+  options?: {
+    headerShown?: boolean;
+    headerLeft?: React.ReactNode | (() => React.ReactNode);
+    headerRight?: React.ReactNode | (() => React.ReactNode);
+    className?: string;
+  };
+};
+```
+
+### Stack
+
+Hierarchical navigator with header support.
+
+```tsx
+type StackProps = {
+  children: React.ReactNode;
+  defaultRoute?: string;
+  material?: boolean | { thickness?: GlassThickness };
+  className?: string;
+  headerShown?: boolean;
+  windowControls?: boolean;
+};
+```
+
+### Stack.Screen
+
+Configuration for individual stack screens.
+
+```tsx
+type StackScreenProps = {
+  name: string;
+  path: string;
+  component?: React.ComponentType<any>;
+  options?: {
+    title?: string;
+    headerShown?: boolean;
+    headerLeft?: React.ReactNode | (() => React.ReactNode);
+    headerRight?: React.ReactNode | (() => React.ReactNode);
+    className?: string;
+  };
+};
+```
+
+## Navigation Hooks
+
+### useRouter
+
+Access navigation functions and state:
+
+```tsx
+import { useRouter } from "@/components/core/router";
+
+function MyComponent() {
+  const { navigate, goBack, currentPath, history } = useRouter();
+
+  return (
+    <div>
+      <button onClick={() => navigate("/photos")}>Go to Photos</button>
+      <button onClick={goBack}>Go Back</button>
+      <p>Current path: {currentPath}</p>
+    </div>
+  );
+}
+```
+
+## Advanced Usage
+
+### Nested Navigation
+
+Combine Ornament and Stack navigators for complex navigation patterns:
+
+```tsx
+function App() {
+  return (
+    <RouterProvider>
+      <NavigationContainer>
+        <Ornament defaultRoute="home">
+          <Ornament.Screen
+            name="home"
+            path="/"
+            component={HomeScreen}
+            icon={<HomeIcon />}
+            title="Home"
+          />
+          <Ornament.Screen
+            name="photos"
+            path="/photos"
+            component={PhotosStack}
+            icon={<PhotosIcon />}
+            title="Photos"
+          />
+        </Ornament>
+      </NavigationContainer>
+    </RouterProvider>
+  );
+}
+
+function PhotosStack() {
+  return (
+    <Stack defaultRoute="photos">
+      <Stack.Screen
+        name="photos"
+        path="/photos"
+        component={PhotosScreen}
+        options={{ title: "Photos" }}
+      />
+      <Stack.Screen
+        name="detail"
+        path="/photos/detail"
+        component={PhotoDetailScreen}
+        options={{ title: "Photo Details" }}
+      />
+    </Stack>
+  );
+}
+```
+
+### Custom Headers
+
+Add custom header content:
+
+```tsx
+<Stack.Screen
+  name="detail"
+  path="/photos/detail"
+  component={PhotoDetailScreen}
+  options={{
+    title: "Photo Details",
+    headerLeft: () => <CustomBackButton />,
+    headerRight: () => <ShareButton />,
+  }}
+/>
+```
+
+### Material Design
+
+Customize the glass material appearance:
+
+```tsx
+<Ornament
+  material={{ thickness: "thick" }}
+  orientation="vertical"
+  position="left"
+  floating={true}
+>
+  {/* Screens */}
+</Ornament>
+```
+
+## Next.js Integration
+
+### Catch-all Routes
+
+Use Next.js catch-all routes for dynamic routing:
+
+```tsx
+// app/[...slug]/page.tsx
+export default function CatchAllPage() {
+  const params = useParams();
+  const route = Array.isArray(params.slug) ? params.slug.join("/") : params.slug;
+
+  return (
+    <RouterProvider>
+      <NavigationContainer>
+        {/* Route-based navigation logic */}
+      </NavigationContainer>
+    </RouterProvider>
+  );
+}
+```
+
+### Dynamic Routes
+
+Handle dynamic parameters:
+
+```tsx
+// app/photos/[id]/page.tsx
+export default function PhotoPage() {
+  const params = useParams();
+  
+  return (
+    <RouterProvider>
+      <NavigationContainer>
+        <Stack defaultRoute="detail">
+          <Stack.Screen
+            name="detail"
+            path={`/photos/${params.id}`}
+            component={PhotoDetailScreen}
+            options={{ title: `Photo ${params.id}` }}
+          />
+        </Stack>
+      </NavigationContainer>
+    </RouterProvider>
+  );
+}
+```
+
+## Vision OS Features
+
+### Window Controls
+
+Automatic Vision OS-style window controls:
+
+```tsx
+<Stack windowControls={true}>
+  {/* Stack content */}
+</Stack>
+```

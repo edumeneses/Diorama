@@ -1,0 +1,205 @@
+---
+title: Dialog
+description: VisionOS-style dialog component
+---
+
+# VisionOS-style Dialog Component
+
+This component provides a VisionOS-style dialog that creates a receding effect on the background content when a dialog is opened. The background content scales down and dims, while the dialog appears with a glass effect.
+
+## Features
+
+- VisionOS-style dialog with glass effect
+- Background content scales down and dims when dialog opens
+- Smooth animations for opening and closing
+- Fully accessible using Radix UI primitives
+- Customizable glass thickness
+- Optional close button
+
+## Usage
+
+### Basic Example
+
+```tsx
+import {
+  VisionDialog,
+  VisionDialogContent,
+  VisionDialogHeader,
+  VisionDialogFooter,
+  VisionDialogTitle,
+  VisionDialogDescription,
+  VisionDialogTrigger,
+  WithVisionDialogEffect,
+} from "@/components/core/dialog";
+import { Button } from "@/components/core/button";
+
+export default function MyComponent() {
+  return (
+    <VisionDialog>
+      {/* Wrap the content that should scale down when dialog opens */}
+      <WithVisionDialogEffect>
+        <div className="p-8">
+          <h1>My Content</h1>
+          <p>This content will scale down when the dialog opens.</p>
+
+          <VisionDialogTrigger asChild>
+            <Button>Open Dialog</Button>
+          </VisionDialogTrigger>
+        </div>
+      </WithVisionDialogEffect>
+
+      {/* The dialog content */}
+      <VisionDialogContent>
+        <VisionDialogHeader>
+          <VisionDialogTitle>Dialog Title</VisionDialogTitle>
+          <VisionDialogDescription>
+            This is a description of the dialog.
+          </VisionDialogDescription>
+        </VisionDialogHeader>
+
+        <div className="py-4">
+          <p>Dialog content goes here.</p>
+        </div>
+
+        <VisionDialogFooter>
+          <Button variant="secondary">Cancel</Button>
+          <Button>Confirm</Button>
+        </VisionDialogFooter>
+      </VisionDialogContent>
+    </VisionDialog>
+  );
+}
+```
+
+### Controlled Dialog
+
+```tsx
+import { useState } from "react";
+import {
+  VisionDialog,
+  VisionDialogContent,
+  VisionDialogTrigger,
+  WithVisionDialogEffect,
+} from "@/components/core/dialog";
+import { Button } from "@/components/core/button";
+
+export default function ControlledDialog() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <VisionDialog open={open} onOpenChange={setOpen}>
+      <WithVisionDialogEffect>
+        <div className="p-8">
+          <Button onClick={() => setOpen(true)}>Open Dialog</Button>
+        </div>
+      </WithVisionDialogEffect>
+
+      <VisionDialogContent>
+        <h2>Controlled Dialog</h2>
+        <p>This dialog is controlled programmatically.</p>
+        <Button onClick={() => setOpen(false)}>Close</Button>
+      </VisionDialogContent>
+    </VisionDialog>
+  );
+}
+```
+
+## Components
+
+### VisionDialog
+
+The root component that provides context for the dialog state.
+
+```tsx
+<VisionDialog>{/* children */}</VisionDialog>
+```
+
+Props:
+
+- `open?: boolean` - Controlled open state
+- `onOpenChange?: (open: boolean) => void` - Callback when open state changes
+- All other props from Radix UI Dialog.Root
+
+### WithVisionDialogEffect
+
+Wrap your content with this component to apply the scale and dim effect when the dialog opens.
+
+```tsx
+<WithVisionDialogEffect>
+  {/* content that will scale down */}
+</WithVisionDialogEffect>
+```
+
+### VisionDialogTrigger
+
+A button that opens the dialog when clicked.
+
+```tsx
+<VisionDialogTrigger asChild>
+  <Button>Open Dialog</Button>
+</VisionDialogTrigger>
+```
+
+### VisionDialogContent
+
+The content of the dialog.
+
+```tsx
+<VisionDialogContent>{/* dialog content */}</VisionDialogContent>
+```
+
+Props:
+
+- `thickness?: GlassThickness` - The thickness of the glass effect (default: "normal")
+- `showCloseButton?: boolean` - Whether to show the close button (default: true)
+- All other props from Radix UI Dialog.Content
+
+### VisionDialogHeader
+
+A container for the dialog header.
+
+```tsx
+<VisionDialogHeader>
+  <VisionDialogTitle>Title</VisionDialogTitle>
+  <VisionDialogDescription>Description</VisionDialogDescription>
+</VisionDialogHeader>
+```
+
+### VisionDialogFooter
+
+A container for the dialog footer, typically containing action buttons.
+
+```tsx
+<VisionDialogFooter>
+  <Button variant="secondary">Cancel</Button>
+  <Button>Confirm</Button>
+</VisionDialogFooter>
+```
+
+### VisionDialogTitle
+
+The title of the dialog.
+
+```tsx
+<VisionDialogTitle>Dialog Title</VisionDialogTitle>
+```
+
+### VisionDialogDescription
+
+A description for the dialog.
+
+```tsx
+<VisionDialogDescription>
+  This is a description of the dialog.
+</VisionDialogDescription>
+```
+
+### VisionDialogClose
+
+A button that closes the dialog when clicked.
+
+```tsx
+<VisionDialogClose asChild>
+  <Button>Close</Button>
+</VisionDialogClose>
+```

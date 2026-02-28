@@ -1,0 +1,37 @@
+---
+title: Ornament
+description: Vertical tab bar with custom scrollbar
+---
+
+import { OrnamentExample } from "@/components/examples/ornament";
+
+<Tabs items={["Preview", "Code"]}>
+
+<Tab value="Preview">
+  <ComponentWrapper gradient>
+    <OrnamentExample />
+  </ComponentWrapper>
+</Tab>
+
+<Tab value="Code">
+
+<include>../../components/core/ornament.tsx</include>
+
+</Tab>
+</Tabs>
+
+## API
+
+### OrnamentTabProps
+
+<AutoTypeTable
+  path="./components/core/ornament.tsx"
+  name="OrnamentTabProps"
+/>
+
+### OrnamentProps
+
+<AutoTypeTable
+  path="./components/core/ornament.tsx"
+  name="OrnamentProps"
+/>

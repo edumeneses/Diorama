@@ -1,0 +1,185 @@
+---
+title: FlashList
+description: A high-performance list component with virtual scrolling support
+---
+
+# FlashList
+
+A high-performance list component that supports virtual scrolling for handling large datasets efficiently while maintaining React Native-like APIs.
+
+## Features
+
+- **Virtual Scrolling**: Only renders visible items for optimal performance
+- **React Native-like API**: Familiar interface similar to React Native's FlatList
+- **Automatic Fallback**: Falls back to standard rendering when virtual scrolling isn't needed
+- **Flexible Sizing**: Supports both fixed and variable item sizes
+- **Scroll Events**: Built-in support for scroll events and end-reached detection
+
+## Basic Usage
+
+```tsx
+import { FlashList } from "@/components/core/flash-list";
+
+const data = [
+  { id: "1", title: "Item 1" },
+  { id: "2", title: "Item 2" },
+  // ... more items
+];
+
+function MyList() {
+  return (
+    <FlashList
+      data={data}
+      renderItem={({ item, index }) => (
+        <div className="border-b p-4">
+          <h3>{item.title}</h3>
+        </div>
+      )}
+      keyExtractor={(item) => item.id}
+      height={400}
+      estimatedItemSize={60}
+    />
+  );
+}
+```
+
+## Props
+
+### Core Props
+
+| Prop           | Type                                                    | Description                     |
+| -------------- | ------------------------------------------------------- | ------------------------------- |
+| `data`         | `T[]`                                                   | Array of items to render        |
+| `renderItem`   | `(info: { item: T; index: number }) => React.ReactNode` | Function to render each item    |
+| `keyExtractor` | `(item: T, index: number) => string`                    | Function to extract unique keys |
+
+### Virtual Scrolling Props
+
+| Prop                | Type                                    | Default  | Description                                    |
+| ------------------- | --------------------------------------- | -------- | ---------------------------------------------- |
+| `itemSize`          | `number \| ((index: number) => number)` | -        | Size of each item (enables virtual scrolling)  |
+| `estimatedItemSize` | `number`                                | `50`     | Estimated size for virtual scrolling           |
+| `height`            | `number \| string`                      | `400`    | Height of the list container                   |
+| `width`             | `number \| string`                      | `"100%"` | Width of the list container                    |
+| `overscan`          | `number`                                | `5`      | Number of items to render outside the viewport |
+
+### Scroll and Layout Props
+
+| Prop                    | Type                                         | Default | Description                                     |
+| ----------------------- | -------------------------------------------- | ------- | ----------------------------------------------- |
+| `onEndReached`          | `() => void`                                 | -       | Called when user scrolls near the end           |
+| `onEndReachedThreshold` | `number`                                     | `0.1`   | Distance from end to trigger onEndReached (0-1) |
+| `onScroll`              | `(e: React.UIEvent<HTMLDivElement>) => void` | -       | Scroll event handler                            |
+| `horizontal`            | `boolean`                                    | `false` | Enable horizontal scrolling                     |
+
+### Layout Props
+
+| Prop                        | Type                                         | Description                           |
+| --------------------------- | -------------------------------------------- | ------------------------------------- |
+| `ListHeaderComponent`       | `React.ReactNode \| (() => React.ReactNode)` | Component to render at the top        |
+| `ListFooterComponent`       | `React.ReactNode \| (() => React.ReactNode)` | Component to render at the bottom     |
+| `className`                 | `string`                                     | CSS classes for the container         |
+| `contentContainerClassName` | `string`                                     | CSS classes for the content container |
+
+## Virtual Scrolling
+
+The FlashList automatically enables virtual scrolling when you provide an `itemSize` prop. This dramatically improves performance for large datasets by only rendering items that are currently visible.
+
+### Fixed Item Size
+
+```tsx
+<FlashList
+  data={largeDataset}
+  renderItem={renderItem}
+  itemSize={80} // Fixed height of 80px per item
+  height={400}
+/>
+```
+
+### Variable Item Size
+
+```tsx
+<FlashList
+  data={largeDataset}
+  renderItem={renderItem}
+  itemSize={(index) => (index % 2 === 0 ? 60 : 100)} // Variable heights
+  height={400}
+/>
+```
+
+## Performance Tips
+
+1. **Always provide `keyExtractor`** for stable item identification
+2. **Use `estimatedItemSize`** that's close to your actual item size
+3. **Set appropriate `overscan`** values (higher = smoother scrolling, more DOM nodes)
+4. **Avoid complex calculations in `renderItem`** - memoize if needed
+
+## Examples
+
+### Basic List with Virtual Scrolling
+
+```tsx
+function VirtualListExample() {
+  const data = Array.from({ length: 10000 }, (_, i) => ({
+    id: `item-${i}`,
+    title: `Item ${i}`,
+  }));
+
+  return (
+    <FlashList
+      data={data}
+      renderItem={({ item }) => (
+        <div className="border-b p-4">
+          <h3>{item.title}</h3>
+        </div>
+      )}
+      keyExtractor={(item) => item.id}
+      itemSize={60}
+      height={400}
+      onEndReached={() => console.log("Reached end")}
+    />
+  );
+}
+```
+
+### List with Header and Footer
+
+```tsx
+function ListWithHeaderFooter() {
+  return (
+    <FlashList
+      data={data}
+      renderItem={renderItem}
+      ListHeaderComponent={() => (
+        <div className="bg-gray-100 p-4">
+          <h2>My List</h2>
+        </div>
+      )}
+      ListFooterComponent={() => (
+        <div className="bg-gray-100 p-4">
+          <p>End of list</p>
+        </div>
+      )}
+      itemSize={60}
+      height={400}
+    />
+  );
+}
+```
+
+### Horizontal Scrolling
+
+```tsx
+function HorizontalList() {
+  return (
+    <FlashList
+      data={data}
+      renderItem={renderItem}
+      horizontal={true}
+      itemSize={200}
+      width={400}
+      height={100}
+    />
+  );
+}
+```
