@@ -1,4 +1,5 @@
 import { Ornament, type OrnamentTabProps } from '@/components/core/ornament'
+import { WindowControls } from '@/components/core/window-control'
 import { OpenMarbleIcon } from '@/components/icons'
 
 const tabs: OrnamentTabProps[] = [
@@ -35,5 +36,10 @@ export default function OpenMarbleLayout({
 }: {
   children: React.ReactNode
 }) {
-  return <Ornament tabs={tabs}>{children}</Ornament>
+  return (
+    <div className="relative mx-auto flex w-full flex-col items-center justify-center">
+      <Ornament tabs={tabs}>{children}</Ornament>
+      <WindowControls />
+    </div>
+  )
 }
