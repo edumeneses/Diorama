@@ -1,0 +1,37 @@
+[
+  {
+    "id": "human-animated",
+    "name": "Human (Animated)",
+    "file": "human-animated.glb",
+    "category": "people",
+    "scale": 1.0
+  },
+  {
+    "id": "fox",
+    "name": "Fox",
+    "file": "fox.glb",
+    "category": "animals",
+    "scale": 0.01
+  },
+  {
+    "id": "duck",
+    "name": "Duck",
+    "file": "duck.glb",
+    "category": "animals",
+    "scale": 0.01
+  },
+  {
+    "id": "car",
+    "name": "Toy Car",
+    "file": "car.glb",
+    "category": "vehicles",
+    "scale": 50.0
+  },
+  {
+    "id": "helmet",
+    "name": "Sci-Fi Helmet",
+    "file": "helmet.glb",
+    "category": "props",
+    "scale": 1.0
+  }
+]

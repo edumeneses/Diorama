@@ -18,5 +18,17 @@ export interface GalleryItem {
   createdAt: number
 }
 
+export interface PlacedModel {
+  id: string
+  assetId: string
+  name: string
+  glbUrl: string
+  position: [number, number, number]
+  rotation: [number, number, number]
+  scale: [number, number, number]
+}
+
 export const currentJobAtom = atom<GenerationJob | null>(null)
 export const galleryItemsAtom = atom<GalleryItem[]>([])
+export const placedModelsAtom = atom<PlacedModel[]>([])
+export const selectedModelIdAtom = atom<string | null>(null)

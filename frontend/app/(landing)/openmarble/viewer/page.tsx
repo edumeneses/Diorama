@@ -1,17 +1,35 @@
 'use client'
 
-import { Suspense } from 'react'
+import { Suspense, useCallback, useRef, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Stack } from '@/components/core/stack'
 import { Button } from '@/components/core/button'
 import { Text } from '@/components/core/text'
 import { ActivityIndicator } from '@/components/activity-indicator'
-import { getSuperSplatViewerUrl } from '@/lib/api'
+import {
+  SceneViewer,
+  type SceneViewerHandle,
+} from '@/components/marble/scene-viewer'
+import { AssetPanel } from '@/components/marble/asset-panel'
 
 function ViewerContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const plyUrl = searchParams.get('ply')
+  const viewerRef = useRef<SceneViewerHandle>(null)
+  const [selectedModelId, setSelectedModelId] = useState<string | null>(null)
+
+  const handleAddAsset = useCallback(
+    (url: string, name: string, defaultScale?: number) => {
+      viewerRef.current?.addModel(url, name, defaultScale)
+    },
+    [],
+  )
+
+  const handleRemoveSelected = useCallback(() => {
+    viewerRef.current?.removeSelected()
+    setSelectedModelId(null)
+  }, [])
 
   if (!plyUrl) {
     return (
@@ -32,8 +50,6 @@ function ViewerContent() {
     )
   }
 
-  const iframeSrc = getSuperSplatViewerUrl(plyUrl)
-
   return (
     <Stack
       material
@@ -50,11 +66,7 @@ function ViewerContent() {
           </Button>
         ),
         headerRight: (
-          <Button
-            variant="secondary"
-            className="rounded-full"
-            asChild
-          >
+          <Button variant="secondary" className="rounded-full" asChild>
             <a href={plyUrl} download>
               Download
             </a>
@@ -62,13 +74,19 @@ function ViewerContent() {
         ),
       }}
     >
-      <iframe
-        src={iframeSrc}
-        className="h-full w-full rounded-b-[var(--view-radius)]"
-        style={{ border: 'none' }}
-        allow="autoplay; fullscreen"
-        title="3D World Viewer"
-      />
+      <div className="flex h-full overflow-hidden rounded-b-[var(--view-radius)]">
+        <SceneViewer
+          ref={viewerRef}
+          plyUrl={plyUrl}
+          className="flex-1"
+          onSelectModel={setSelectedModelId}
+        />
+        <AssetPanel
+          onAddAsset={handleAddAsset}
+          selectedModelId={selectedModelId}
+          onRemoveSelected={handleRemoveSelected}
+        />
+      </div>
     </Stack>
   )
 }
