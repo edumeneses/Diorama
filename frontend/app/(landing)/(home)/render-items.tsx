@@ -10,7 +10,6 @@ import docsIcon from '@/public/assets/landing/home/icon-docs.avif'
 import fumadocsIcon from '@/public/assets/landing/home/icon-fumadocs.avif'
 import githubIcon from '@/public/assets/landing/home/icon-github.avif'
 import photosIcon from '@/public/assets/landing/home/icon-photos.avif'
-import settingsIcon from '@/public/assets/landing/home/icon-settings.avif'
 
 const honeycombIconClassName = cn(
   'pointer-events-none touch-none object-contain p-3 transition-all duration-300',
@@ -41,13 +40,6 @@ export const items: ItemProps[] = [
       <div className="h-full w-full bg-gradient-to-t from-indigo-600 to-purple-400" />
     ),
     href: '/openmarble',
-  },
-  {
-    id: 'settings',
-    label: 'Settings',
-    background: <div className="h-full w-full bg-[#2E2E2F]"></div>,
-    icon: <Image src={settingsIcon} alt="Settings" className={honeycombIconClassName} />,
-    href: '/components',
   },
   {
     id: 'app-store',
@@ -87,7 +79,11 @@ const colIndexClassName = {
 }
 
 export const renderCell = ({ item, rowIndex, colIndex }: ListRenderItemInfo<ItemProps>) => (
-  <Link href={item.href ?? ''} className="flex flex-col items-center justify-center gap-2">
+  <Link
+    href={item.href ?? ''}
+    className="flex flex-col items-center justify-center gap-2"
+    {...(item.href?.startsWith('http') ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+  >
     <motion.div
       //! This causes firefox to not render the cell properly
       // material={{ thickness: 'thin' }}

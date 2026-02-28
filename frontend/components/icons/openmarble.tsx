@@ -1,27 +1,10 @@
 import type { SVGProps } from 'react'
 
 const OpenMarbleIcon = (props: SVGProps<SVGSVGElement>) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" {...props}>
-    <circle
-      cx="12"
-      cy="12"
-      r="9.5"
-      stroke="currentColor"
-      strokeWidth="1.5"
-    />
-    <ellipse
-      cx="12"
-      cy="12"
-      rx="4"
-      ry="9.5"
-      stroke="currentColor"
-      strokeWidth="1.2"
-    />
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none" {...props}>
     <path
-      d="M3 9h18M3 15h18"
-      stroke="currentColor"
-      strokeWidth="1.2"
-      strokeLinecap="round"
+      d="M 28 0 C 83.228 0 128 44.772 128 100 C 128 44.772 172.772 0 228 0 L 256 0 L 256 156 C 256 211.228 211.228 256 156 256 L 100 256 C 44.772 256 0 211.228 0 156 L 0 0 Z"
+      fill="rgb(220, 220, 220)"
     />
   </svg>
 )

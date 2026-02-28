@@ -1,13 +1,8 @@
 import { Ornament, type OrnamentTabProps } from '@/components/core/ornament'
-import { AppStoreIcon, EnvironmentsIcon, PeopleIcon } from '@/components/icons'
+import { AppStoreIcon, EnvironmentsIcon } from '@/components/icons'
 
 const tabs: OrnamentTabProps[] = [
   { name: 'Home', href: '/', icon: <AppStoreIcon className="size-6" data-slot="icon" /> },
-  {
-    name: 'People',
-    href: '/people',
-    icon: <PeopleIcon className="size-6" data-slot="icon" />,
-  },
   {
     name: 'Environments',
     href: '/environments',
