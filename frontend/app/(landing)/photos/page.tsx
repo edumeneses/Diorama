@@ -16,11 +16,11 @@ import { defaultWindowProps } from '../constants'
 import { WorldGrid } from './memories-view'
 
 const CATEGORIES = [
-  { value: 'stylized', label: 'Stylized', Icon: PhotosIcon },
   { value: 'interior', label: 'Interior', Icon: CollectionsIcon },
   { value: 'exterior', label: 'Exterior', Icon: EnvironmentsIcon },
-  { value: 'fantasy', label: 'Fantasy', Icon: SpacialIcon },
-  { value: 'sci-fi', label: 'Sci-Fi', Icon: PanoIcon },
+  { value: 'stylized', label: 'Stylized', Icon: PhotosIcon },
+  // { value: 'fantasy', label: 'Fantasy', Icon: SpacialIcon },
+  // { value: 'sci-fi', label: 'Sci-Fi', Icon: PanoIcon },
 ] as const
 
 function GalleryPage() {

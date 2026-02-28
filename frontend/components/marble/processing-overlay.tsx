@@ -35,7 +35,9 @@ export function ProcessingOverlay({ job }: ProcessingOverlayProps) {
             </motion.div>
             <Text size="title3">
               {job.status === 'imagining'
-                ? 'Imagining your world...'
+                ? job.sourceUrl
+                  ? 'Scanning page for best image...'
+                  : 'Imagining your world...'
                 : job.status === 'uploading'
                   ? 'Uploading image...'
                   : 'Generating 3D world...'}

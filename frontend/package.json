@@ -11,12 +11,15 @@
     "ver": "changeset version"
   },
   "dependencies": {
+    "@ai-sdk/amazon-bedrock": "^4.0.69",
     "@googlemaps/js-api-loader": "^2.0.2",
     "@mkkellogg/gaussian-splats-3d": "^0.4.7",
     "@tabler/icons-react": "^3.36.1",
     "@tailwindcss/postcss": "^4.1.18",
     "@tanstack/react-virtual": "^3.13.18",
+    "ai": "^6.0.105",
     "babel-plugin-react-compiler": "1.0.0",
+    "bedrock-agentcore": "^0.2.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "fumadocs-core": "^16.4.7",

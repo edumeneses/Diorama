@@ -8,6 +8,7 @@ export interface GenerationJob {
   videoUrl?: string
   plyFilename?: string
   error?: string
+  sourceUrl?: string
   createdAt: number
 }
 
@@ -16,6 +17,7 @@ export interface GalleryItem {
   plyUrl: string
   plyFilename: string
   createdAt: number
+  thumbnailUrl: string | null
 }
 
 export interface PlacedModel {

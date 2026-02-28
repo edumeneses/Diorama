@@ -1,6 +1,5 @@
 import { Ornament, type OrnamentTabProps } from '@/components/core/ornament'
 import { WindowControls } from '@/components/core/window-control'
-import { OpenMarbleIcon } from '@/components/icons'
 
 const tabs: OrnamentTabProps[] = [
   {
@@ -23,11 +22,6 @@ const tabs: OrnamentTabProps[] = [
         <line x1="12" x2="12" y1="3" y2="15" />
       </svg>
     ),
-  },
-  {
-    name: 'Gallery',
-    href: '/openmarble/gallery',
-    icon: <OpenMarbleIcon className="size-6" data-slot="icon" />,
   },
 ]
 

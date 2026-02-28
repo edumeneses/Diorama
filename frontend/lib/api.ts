@@ -38,6 +38,7 @@ export async function generateWorld(
     ply_url: string
     ply_filename: string
     video_url: string | null
+    thumbnail_url: string | null
   }>
 }
 
@@ -49,6 +50,22 @@ export async function fetchGallery() {
       id: string
       ply_url: string
       ply_filename: string
+      created_at: number
+      thumbnail_url: string | null
+      video_url: string | null
+    }>
+  }>
+}
+
+export async function fetchWorlds() {
+  const res = await fetch(`${BACKEND_URL}/api/worlds`)
+  if (!res.ok) throw new Error('Failed to fetch worlds')
+  return res.json() as Promise<{
+    items: Array<{
+      id: string
+      ply_url: string
+      video_url: string
+      thumbnail_url: string | null
       created_at: number
     }>
   }>
@@ -64,6 +81,21 @@ export async function generateImageFromText(prompt: string) {
   if (!res.ok) {
     const error = await res.json().catch(() => ({ error: 'Unknown error' }))
     throw new Error(error.error || 'Image generation failed')
+  }
+
+  return res.json() as Promise<{ image_url: string }>
+}
+
+export async function extractImageFromUrl(url: string) {
+  const res = await fetch('/api/url-to-world', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url }),
+  })
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: 'Unknown error' }))
+    throw new Error(error.error || 'URL extraction failed')
   }
 
   return res.json() as Promise<{ image_url: string }>

@@ -1,95 +1,78 @@
 'use client'
 
 import { motion } from 'motion/react'
-import type { StaticImageData } from 'next/image'
-import Image from 'next/image'
 import { useRef, useState } from 'react'
 import { Text } from '@/components/core'
 import type { ListRenderItemInfo } from '@/components/core/grid-layout'
-import data from '@/components/environment/data'
-import { cn } from '@/lib/utils'
-import { saveEnvironment } from '../../actions'
 
-interface ItemProps {
+export interface WorldItem {
   id: string
-  label: string
-  background: StaticImageData
+  plyUrl: string
+  videoUrl: string
+  thumbnailUrl: string | null
+  createdAt: number
 }
 
-export const items: ItemProps[] = data.map((environment) => ({
-  id: environment.id,
-  label: environment.label,
-  background: environment.icon,
-}))
+interface WorldCellProps {
+  item: WorldItem
+  onOpen: () => void
+}
 
-export const renderCell = ({ item }: ListRenderItemInfo<ItemProps>) => {
+export function WorldCell({ item, onOpen }: WorldCellProps) {
+  const videoRef = useRef<HTMLVideoElement>(null)
   const [isLongHover, setIsLongHover] = useState(false)
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const handleMouseEnter = () => {
-    // Clear any existing timeout
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current)
-    }
-
-    // Set a new timeout to trigger long hover after 1.2 seconds
-    hoverTimeoutRef.current = setTimeout(() => {
-      setIsLongHover(true)
-    }, 1200)
+    videoRef.current?.play()
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current)
+    hoverTimeoutRef.current = setTimeout(() => setIsLongHover(true), 1200)
   }
 
   const handleMouseLeave = () => {
-    // Clear the timeout and reset the state
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current)
-      hoverTimeoutRef.current = null
-    }
+    const v = videoRef.current
+    if (v) { v.pause(); v.currentTime = 0 }
+    if (hoverTimeoutRef.current) { clearTimeout(hoverTimeoutRef.current); hoverTimeoutRef.current = null }
     setIsLongHover(false)
   }
+
+  const label = new Date(item.createdAt * 1000).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+  })
+
   return (
     <div
-      onClick={() => saveEnvironment(item.id)}
-      className="flex w-[140px] flex-col items-center justify-center gap-2"
+      onClick={onOpen}
+      className="flex w-[420px] flex-col items-center justify-center gap-2 cursor-pointer"
     >
       <motion.div
-        //! This causes firefox to not render the cell properly
-        // material={{ thickness: 'thin' }}
-        className={cn(
-          'relative flex items-center justify-center overflow-hidden rounded-full bg-neutral-900/70 duration-300 [--view-diameter:100px] [--view-radius:50px]',
-          'group/cell'
-        )}
-        whileHover={{
-          scale: 1.05,
-          transition: {
-            type: 'spring',
-            duration: 2,
-          },
-        }}
-        transition={{
-          type: 'spring',
-          duration: 0.35,
-        }}
-        style={{
-          width: isLongHover ? 140 : 100,
-          height: 100,
-        }}
+        className="relative flex items-center justify-center overflow-hidden rounded-full bg-neutral-900/70 group/cell"
+        whileHover={{ scale: 1.05, transition: { type: 'spring', duration: 2 } }}
+        transition={{ type: 'spring', duration: 0.35 }}
+        style={{ width: isLongHover ? 420 : 200, height: 200 }}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
-        <div className={'pointer-events-none absolute inset-0'}>
-          <Image src={item.background} alt={item.label} className="size-full object-cover" />
-          <div
-            className={cn(
-              'absolute inset-0 z-10 bg-white/10 opacity-0 transition-opacity duration-300',
-              'bg-blend-overlay',
-              'group-hover/cell:opacity-100'
-            )}
-          />
-        </div>
+        <video
+          ref={videoRef}
+          src={item.videoUrl}
+          muted
+          loop
+          playsInline
+          className="pointer-events-none absolute inset-0 size-full object-cover"
+        />
+        <div className="pointer-events-none absolute inset-0 z-10 bg-white/10 opacity-0 transition-opacity duration-300 bg-blend-overlay group-hover/cell:opacity-100" />
       </motion.div>
       <Text variant="secondary" size="caption1">
-        {item.label}
+        {label}
       </Text>
     </div>
+  )
+}
+
+export function makeRenderCell(onOpen: (item: WorldItem) => void) {
+  return ({ item }: ListRenderItemInfo<WorldItem>) => (
+    <WorldCell item={item} onOpen={() => onOpen(item)} />
   )
 }

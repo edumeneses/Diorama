@@ -33,6 +33,7 @@ UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
 
 ALLOWED_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
+IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp"]
 
 # ---------------------------------------------------------------------------
 # App
@@ -156,6 +157,7 @@ async def generate(
         # Copy .ply file to our outputs directory
         ply_url = None
         ply_filename = None
+        thumbnail_url = None
 
         if ply_source_path:
             ply_source = Path(ply_source_path)
@@ -168,6 +170,15 @@ async def generate(
                 shutil.copy2(ply_source, ply_dest)
                 ply_url = f"http://localhost:8000/files/{ply_filename}"
                 logger.info("Copied PLY to %s", ply_dest)
+
+                # Persist source image alongside the .ply so the gallery can use
+                # it as a thumbnail. The stem is the same as the .ply file so the
+                # mapping is purely filename-based (no separate DB needed).
+                thumbnail_filename = f"{upload_id}{ext}"
+                thumbnail_dest = OUTPUTS_DIR / thumbnail_filename
+                shutil.copy2(upload_path, thumbnail_dest)
+                thumbnail_url = f"http://localhost:8000/files/{thumbnail_filename}"
+                logger.info("Copied thumbnail to %s", thumbnail_dest)
         else:
             logger.warning("Could not extract PLY path from result")
 
@@ -197,13 +208,14 @@ async def generate(
                 detail="Generation failed: no .ply file produced",
             )
 
-        logger.info("[5/5] Success — ply_url=%s, video_url=%s", ply_url, video_url)
+        logger.info("[5/5] Success — ply_url=%s, video_url=%s, thumbnail_url=%s", ply_url, video_url, thumbnail_url)
         return JSONResponse(
             {
                 "id": upload_id,
                 "ply_url": ply_url,
                 "ply_filename": ply_filename,
                 "video_url": video_url,
+                "thumbnail_url": thumbnail_url,
             }
         )
 
@@ -224,12 +236,60 @@ async def gallery():
         key=lambda p: p.stat().st_mtime,
         reverse=True,
     ):
+        # Resolve thumbnail by finding a same-stem image file in outputs/.
+        # e.g. abc123.ply → abc123.jpg (or .png, .webp, .jpeg)
+        thumbnail_url = None
+        for img_ext in IMAGE_EXTENSIONS:
+            candidate = OUTPUTS_DIR / f"{ply.stem}{img_ext}"
+            if candidate.exists():
+                thumbnail_url = f"http://localhost:8000/files/{candidate.name}"
+                break
+
+        video_url = None
+        video_candidate = OUTPUTS_DIR / f"{ply.stem}.mp4"
+        if video_candidate.exists():
+            video_url = f"http://localhost:8000/files/{video_candidate.name}"
+
         items.append(
             {
                 "id": ply.stem,
                 "ply_url": f"http://localhost:8000/files/{ply.name}",
                 "ply_filename": ply.name,
                 "created_at": ply.stat().st_mtime,
+                "thumbnail_url": thumbnail_url,
+                "video_url": video_url,
+            }
+        )
+    return {"items": items}
+
+
+@app.get("/api/worlds")
+async def worlds():
+    """Return all generated worlds that have both a .mp4 preview and a .ply file."""
+    items = []
+    for mp4 in sorted(
+        OUTPUTS_DIR.glob("*.mp4"),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    ):
+        ply = OUTPUTS_DIR / f"{mp4.stem}.ply"
+        if not ply.exists():
+            continue
+
+        thumbnail_url = None
+        for img_ext in IMAGE_EXTENSIONS:
+            candidate = OUTPUTS_DIR / f"{mp4.stem}{img_ext}"
+            if candidate.exists():
+                thumbnail_url = f"http://localhost:8000/files/{candidate.name}"
+                break
+
+        items.append(
+            {
+                "id": mp4.stem,
+                "ply_url": f"http://localhost:8000/files/{ply.name}",
+                "video_url": f"http://localhost:8000/files/{mp4.name}",
+                "thumbnail_url": thumbnail_url,
+                "created_at": mp4.stat().st_mtime,
             }
         )
     return {"items": items}

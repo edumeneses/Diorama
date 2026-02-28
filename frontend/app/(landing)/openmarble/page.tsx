@@ -14,10 +14,10 @@ import {
   type StreetViewInputHandle,
 } from '@/components/marble/street-view-input'
 import { currentJobAtom } from '@/lib/marble-atoms'
-import { generateWorld, generateImageFromText } from '@/lib/api'
+import { generateWorld, generateImageFromText, extractImageFromUrl } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
-type InputMode = 'image' | 'text' | 'maps'
+type InputMode = 'image' | 'text' | 'maps' | 'url'
 
 export default function CreatePage() {
   const router = useRouter()
@@ -26,6 +26,7 @@ export default function CreatePage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [textPrompt, setTextPrompt] = useState('')
+  const [urlInput, setUrlInput] = useState('')
   const [streetViewReady, setStreetViewReady] = useState(false)
   const streetViewRef = useRef<StreetViewInputHandle>(null)
 
@@ -38,12 +39,14 @@ export default function CreatePage() {
     if (mode === 'image' && !selectedFile) return
     if (mode === 'text' && !textPrompt.trim()) return
     if (mode === 'maps' && (!streetViewReady || !streetViewRef.current)) return
+    if (mode === 'url' && !urlInput.trim()) return
 
     const jobId = Date.now().toString()
     setJob({
       id: jobId,
-      status: mode === 'text' ? 'imagining' : 'uploading',
+      status: mode === 'text' || mode === 'url' ? 'imagining' : 'uploading',
       imagePreviewUrl: previewUrl ?? undefined,
+      sourceUrl: mode === 'url' ? urlInput.trim() : undefined,
       createdAt: Date.now(),
     })
 
@@ -58,6 +61,20 @@ export default function CreatePage() {
         const imgRes = await fetch(image_url)
         const blob = await imgRes.blob()
         imageFile = new File([blob], 'imagined.jpeg', { type: blob.type || 'image/jpeg' })
+
+        setJob((prev) =>
+          prev
+            ? { ...prev, status: 'uploading', imagePreviewUrl: image_url }
+            : null,
+        )
+      } else if (mode === 'url') {
+        // Step 1: Use AgentCore BrowserTools to extract the best image from the URL
+        const { image_url } = await extractImageFromUrl(urlInput.trim())
+
+        // Step 2: Download the extracted image as a File
+        const imgRes = await fetch(image_url)
+        const blob = await imgRes.blob()
+        imageFile = new File([blob], 'extracted.jpeg', { type: blob.type || 'image/jpeg' })
 
         setJob((prev) =>
           prev
@@ -102,14 +119,16 @@ export default function CreatePage() {
           : null,
       )
     }
-  }, [mode, selectedFile, textPrompt, previewUrl, streetViewReady, setJob, router])
+  }, [mode, selectedFile, textPrompt, urlInput, previewUrl, streetViewReady, setJob, router])
 
   const canGenerate =
     mode === 'image'
       ? !!selectedFile
       : mode === 'text'
         ? !!textPrompt.trim()
-        : streetViewReady
+        : mode === 'url'
+          ? !!urlInput.trim()
+          : streetViewReady
 
   return (
     <>
@@ -214,6 +233,33 @@ export default function CreatePage() {
               </svg>
               Maps
             </button>
+
+            {/* URL tab */}
+            <button
+              type="button"
+              onClick={() => setMode('url')}
+              className={cn(
+                'flex items-center gap-2 rounded-full px-5 py-2 text-sm font-medium transition-colors',
+                mode === 'url'
+                  ? 'bg-white/15 text-white'
+                  : 'text-white/50 hover:text-white/80',
+              )}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="size-4"
+              >
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+              </svg>
+              URL
+            </button>
           </Material>
 
           {/* Image Mode */}
@@ -257,6 +303,43 @@ export default function CreatePage() {
               ref={streetViewRef}
               onLocationSet={setStreetViewReady}
             />
+          )}
+
+          {/* URL Mode */}
+          {mode === 'url' && (
+            <Material
+              thickness="thin"
+              className="flex w-full max-w-[500px] flex-col gap-3 p-6"
+            >
+              <Text size="callout" variant="secondary">
+                Paste any URL — we'll find the best image and turn it into a 3D world
+              </Text>
+              <div className="relative flex items-center">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="absolute left-3 size-4 text-white/30"
+                >
+                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                </svg>
+                <input
+                  type="url"
+                  value={urlInput}
+                  onChange={(e) => setUrlInput(e.target.value)}
+                  placeholder="https://en.wikipedia.org/wiki/Machu_Picchu"
+                  className="w-full rounded-2xl border border-white/10 bg-white/5 py-3 pl-10 pr-4 text-sm text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none"
+                />
+              </div>
+              <Text size="caption2" variant="tertiary">
+                Try: Wikipedia articles, travel blogs, news stories, or any page with a striking photo
+              </Text>
+            </Material>
           )}
 
           {/* Generate Button */}
