@@ -1,11 +1,11 @@
-# OpenMarble
+# MarbleOS
 
 > *Imagining a World* — a spatial computing interface for turning images into explorable 3D worlds.
 
 
 ## Vision
 
-OpenMarble is an experiment in what a personal spatial OS might look like if it were built around generative 3D. Upload a photo, and OpenMarble reconstructs it as a navigable Gaussian Splat — viewable, shareable, and editable right in the browser. The interface takes its aesthetic cues from visionOS: glassmorphism, depth, spring animations, and a window-based app model.
+MarbleOS is an experiment in what a personal spatial OS might look like if it were built around generative 3D. Upload a photo, and MarbleOS reconstructs it as a navigable Gaussian Splat — viewable, shareable, and editable right in the browser. The interface takes its aesthetic cues from visionOS: glassmorphism, depth, spring animations, and a window-based app model.
 
 The goal is to make 3D scene generation feel as natural as taking a photo.
 
@@ -16,12 +16,12 @@ The goal is to make 3D scene generation feel as natural as taking a photo.
 The project is organized into three layers:
 
 ```
-frontend/       Next.js 16 — VisionOS-style shell + OpenMarble app
+frontend/       Next.js 16 — VisionOS-style shell + MarbleOS app
 backend/        FastAPI — wraps Apple SHARP for inference
 supersplat/     Gaussian Splat editor (embedded via iframe)
 ```
 
-**Frontend** (`localhost:3080`) — a Next.js app built on the `vision-ui` template. The home grid launches individual apps; OpenMarble lives at `/openmarble` with Create and Gallery tabs. State is managed with Jotai atoms (`lib/marble-atoms.ts`). UI components follow the VisionOS design system: `Material`, `Ornament`, `Stack`, spring-based motion.
+**Frontend** (`localhost:3080`) — a Next.js app built on the `vision-ui` template. The home grid launches individual apps; MarbleOS lives at `/openmarble` with Create and Gallery tabs. State is managed with Jotai atoms (`lib/marble-atoms.ts`). UI components follow the VisionOS design system: `Material`, `Ornament`, `Stack`, spring-based motion.
 
 **Backend** (`localhost:8000`) — a FastAPI server (`backend/main.py`) that accepts an image, runs it through Apple's SHARP model, and returns a `.ply` Gaussian Splat file and a preview `.mp4`. The SHARP model lives in `Apple-Sharp-Image-to-3D-View-Synthesis/` and is imported via `sys.path` without code duplication.
 

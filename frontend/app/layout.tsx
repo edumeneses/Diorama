@@ -10,7 +10,7 @@ const inter = Inter({
 })
 
 export const metadata = {
-  title: 'Vision UI',
+  title: 'Marble OS',
   description: 'UI Experiment for Vision OS',
   metadataBase: new URL(process.env.NEXT_PUBLIC_URL!),
 } satisfies Metadata
