@@ -63,6 +63,16 @@ def get_model():
     return _model
 
 
+def _teardown_model():
+    """Drop the model and reclaim all GPU memory it can."""
+    global _model
+    _model = None
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.reset_peak_memory_stats()
+
+
 @app.get("/health")
 def health():
     return {
@@ -132,6 +142,16 @@ async def generate(
             else:
                 splat = model.generate_world(prompt=prompt, image=pil_image)
             splat.save(str(out_path))
+        except torch.OutOfMemoryError:
+            # An OOM mid-pipeline strands CPU-offloaded modules on the GPU and
+            # wedges the process (every later job then OOMs too). Tear the
+            # model down completely; the next request reloads it clean (~10 s).
+            logger.exception("[%s] CUDA OOM — tearing down model for clean reload", job_id)
+            _teardown_model()
+            raise HTTPException(
+                status_code=500,
+                detail="WorldGen ran out of GPU memory; the model was reset — please retry",
+            )
         except Exception:
             logger.exception("[%s] generation failed", job_id)
             raise HTTPException(status_code=500, detail="WorldGen generation failed")
@@ -139,8 +159,18 @@ async def generate(
             # Release per-job tensors and the caching allocator's slack so a
             # failed or oversized job can't starve the next one (or SHARP).
             gc.collect()
-            torch.cuda.empty_cache()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
         elapsed = time.time() - t0
+
+        # Live allocations should be back near the resident-model baseline
+        # after cleanup; sustained growth means a leak — reload rather than
+        # letting the next job hit the ceiling.
+        allocated_gb = torch.cuda.memory_allocated() / 2**30
+        logger.info("[%s] post-job CUDA allocated: %.1f GiB", job_id, allocated_gb)
+        if allocated_gb > 8.0:
+            logger.warning("[%s] allocation creep (%.1f GiB) — tearing down model", job_id, allocated_gb)
+            _teardown_model()
 
     logger.info("[%s] done in %.1fs → %s (%.1f MB)",
                 job_id, elapsed, out_path, out_path.stat().st_size / 2**20)
