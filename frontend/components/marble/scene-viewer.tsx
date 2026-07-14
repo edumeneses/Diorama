@@ -20,6 +20,13 @@ export interface SceneViewerHandle {
 
 interface SceneViewerProps {
   plyUrl: string
+  /**
+   * 360° world mode (WorldGen output): the splats surround the origin, so the
+   * camera starts inside the scene and orbiting means "looking around".
+   * Default (false) suits SHARP output: a forward-facing scene viewed from
+   * a pulled-back camera.
+   */
+  worldMode?: boolean
   className?: string
   onReady?: () => void
   onSelectModel?: (id: string | null) => void
@@ -34,7 +41,7 @@ interface PlacedMesh {
 
 const SceneViewer = forwardRef<SceneViewerHandle, SceneViewerProps>(
   function SceneViewer(
-    { plyUrl, className, onReady, onSelectModel, onTransformModeChange },
+    { plyUrl, worldMode = false, className, onReady, onSelectModel, onTransformModeChange },
     ref,
   ) {
     const containerRef = useRef<HTMLDivElement>(null)
@@ -124,10 +131,15 @@ const SceneViewer = forwardRef<SceneViewerHandle, SceneViewerProps>(
         const camera = new THREE.PerspectiveCamera(
           65,
           width / height,
-          0.1,
+          worldMode ? 0.01 : 0.1,
           500,
         )
-        camera.position.set(0, 1.5, 4)
+        if (worldMode) {
+          // Inside the 360° world: tiny orbit radius = head rotation.
+          camera.position.set(0, 0, 0.2)
+        } else {
+          camera.position.set(0, 1.5, 4)
+        }
 
         // Lights
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.6)
@@ -141,6 +153,14 @@ const SceneViewer = forwardRef<SceneViewerHandle, SceneViewerProps>(
         orbitControls.enableDamping = true
         orbitControls.dampingFactor = 0.1
         orbitControls.target.set(0, 0, 0)
+        if (worldMode) {
+          // Keep the camera inside the splat shell; dragging looks around
+          // instead of orbiting a distant object.
+          orbitControls.minDistance = 0.05
+          orbitControls.maxDistance = 3
+          orbitControls.rotateSpeed = -0.4
+          orbitControls.zoomSpeed = 0.5
+        }
 
         // Transform Controls (gizmo for move/rotate/scale)
         const transformControls = new TransformControls(
@@ -333,7 +353,7 @@ const SceneViewer = forwardRef<SceneViewerHandle, SceneViewerProps>(
         cancelled = true
         cleanupPromise.then((cleanup) => cleanup?.())
       }
-    }, [plyUrl, onReady, onSelectModel, onTransformModeChange, selectMesh])
+    }, [plyUrl, worldMode, onReady, onSelectModel, onTransformModeChange, selectMesh])
 
     // Expose methods to parent
     const addModel = useCallback(

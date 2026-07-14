@@ -69,6 +69,12 @@ function ViewerContent() {
   const viewerRef = useRef<SceneViewerHandle>(null)
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null)
   const [transformMode, setTransformMode] = useState<TransformMode>('translate')
+  // 360° worlds (WorldGen) are viewed from inside; 3D photos (SHARP) from
+  // outside. Initialized from the URL, switchable in the header for gallery
+  // items where the engine isn't known.
+  const [worldMode, setWorldMode] = useState(
+    searchParams.get('mode') === 'world',
+  )
 
   const handleAddAsset = useCallback(
     (url: string, name: string, defaultScale?: number) => {
@@ -123,18 +129,29 @@ function ViewerContent() {
             </Button>
           ),
           headerRight: (
-            <Button variant="secondary" className="rounded-full" asChild>
-              <a href={plyUrl} download>
-                Download
-              </a>
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                className="rounded-full"
+                onClick={() => setWorldMode((v) => !v)}
+              >
+                {worldMode ? '360° view' : 'Orbit view'}
+              </Button>
+              <Button variant="secondary" className="rounded-full" asChild>
+                <a href={plyUrl} download>
+                  Download
+                </a>
+              </Button>
+            </div>
           ),
         }}
       >
         <div className="relative flex h-full overflow-hidden rounded-b-[var(--view-radius)]">
           <SceneViewer
+            key={worldMode ? 'world' : 'photo'}
             ref={viewerRef}
             plyUrl={plyUrl}
+            worldMode={worldMode}
             className="flex-1"
             onSelectModel={setSelectedModelId}
             onTransformModeChange={setTransformMode}

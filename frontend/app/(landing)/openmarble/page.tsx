@@ -114,7 +114,9 @@ export default function CreatePage() {
           : null,
       )
       router.push(
-        `/openmarble/viewer?ply=${encodeURIComponent(result.ply_url)}`,
+        `/openmarble/viewer?ply=${encodeURIComponent(result.ply_url)}${
+          engine === 'worldgen' ? '&mode=world' : ''
+        }`,
       )
     } catch (error) {
       setJob((prev) =>
