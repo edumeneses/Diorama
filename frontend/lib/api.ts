@@ -13,9 +13,16 @@ export async function checkHealth() {
   }>
 }
 
+export type Engine = 'sharp' | 'worldgen'
+
 export async function generateWorld(
   imageFile: File,
-  options?: { renderVideo?: boolean; trajectoryType?: string },
+  options?: {
+    renderVideo?: boolean
+    trajectoryType?: string
+    engine?: Engine
+    prompt?: string
+  },
 ) {
   const formData = new FormData()
   formData.append('image', imageFile)
@@ -24,6 +31,8 @@ export async function generateWorld(
   if (options?.renderVideo) params.set('render_video', 'true')
   if (options?.trajectoryType)
     params.set('trajectory_type', options.trajectoryType)
+  if (options?.engine) params.set('engine', options.engine)
+  if (options?.prompt) params.set('prompt', options.prompt)
 
   const url = `${BACKEND_URL}/api/generate${params.toString() ? `?${params}` : ''}`
   const res = await fetch(url, { method: 'POST', body: formData })

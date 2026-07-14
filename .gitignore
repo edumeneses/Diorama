@@ -1,0 +1,8 @@
+logs/
+__pycache__/
+*.pyc
+
+# Generated at runtime — keep the repo's curated LFS samples, not local runs
+backend/uploads/
+backend/outputs/
+Apple-Sharp-Image-to-3D-View-Synthesis/outputs/

@@ -343,6 +343,11 @@ class ModelWrapper:
                 if self._predictor_device.type != "cpu":
                     self._predictor.to("cpu")
                     self._predictor_device = torch.device("cpu")
+                    # Return the cached VRAM to the driver, not just to the
+                    # allocator — the WorldGen engine shares this GPU and needs
+                    # nearly all of it at peak.
+                    if torch.cuda.is_available():
+                        torch.cuda.empty_cache()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
@@ -547,16 +552,26 @@ class ModelWrapper:
             return None, pred.ply_path
 
         output_stem = pred.ply_path.with_suffix("").name
-        video_path = self.render_video(
-            gaussians=pred.gaussians,
-            metadata=pred.metadata_for_render,
-            output_stem=output_stem,
-            trajectory_type=trajectory_type,
-            num_frames=num_frames,
-            fps=fps,
-            output_long_side=output_long_side,
-        )
-        return video_path, pred.ply_path
+        ply_path = pred.ply_path
+        try:
+            video_path = self.render_video(
+                gaussians=pred.gaussians,
+                metadata=pred.metadata_for_render,
+                output_stem=output_stem,
+                trajectory_type=trajectory_type,
+                num_frames=num_frames,
+                fps=fps,
+                output_long_side=output_long_side,
+            )
+        finally:
+            # The render path allocates several GB of frame/gaussian buffers on
+            # CUDA; drop the gaussians reference and release the allocator so
+            # the WorldGen engine (which peaks near the full card) isn't
+            # starved between our calls.
+            del pred
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        return video_path, ply_path
 
 
 # -----------------------------------------------------------------------------

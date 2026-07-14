@@ -13,6 +13,7 @@ import traceback
 import uuid
 from pathlib import Path
 
+import httpx
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -26,6 +27,8 @@ logger = logging.getLogger("marbleos")
 # Config
 # ---------------------------------------------------------------------------
 GRADIO_URL = "http://localhost:7860"
+WORLDGEN_URL = "http://localhost:7861"
+WORLDGEN_TIMEOUT_S = 600.0  # first request also pays ~10s model load
 
 UPLOADS_DIR = Path(__file__).resolve().parent / "uploads"
 OUTPUTS_DIR = Path(__file__).resolve().parent / "outputs"
@@ -62,23 +65,91 @@ app.mount("/files", StaticFiles(directory=str(OUTPUTS_DIR)), name="files")
 
 @app.get("/api/health")
 async def health():
+    sharp_ok = False
+    worldgen_ok = False
     try:
         client = Client(GRADIO_URL)
         _ = client.view_api(print_info=False)
-        return {"status": "ok", "gradio_connected": True}
+        sharp_ok = True
     except Exception:
-        return {"status": "degraded", "gradio_connected": False}
+        pass
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as hc:
+            r = await hc.get(f"{WORLDGEN_URL}/health")
+            worldgen_ok = r.status_code == 200
+    except Exception:
+        pass
+    return {
+        "status": "ok" if sharp_ok else "degraded",
+        "gradio_connected": sharp_ok,
+        "worldgen_connected": worldgen_ok,
+    }
+
+
+async def _generate_worldgen(
+    upload_path: Path, upload_id: str, ext: str, prompt: str, pano: str = "auto"
+) -> JSONResponse:
+    """Route a generation to the WorldGen service (engine #2, 360° worlds)."""
+    logger.info("[worldgen] Sending %s to %s ...", upload_path, WORLDGEN_URL)
+    async with httpx.AsyncClient(timeout=WORLDGEN_TIMEOUT_S) as hc:
+        with open(upload_path, "rb") as f:
+            resp = await hc.post(
+                f"{WORLDGEN_URL}/generate",
+                files={"image": (upload_path.name, f)},
+                data={"prompt": prompt, "pano": pano},
+            )
+    if resp.status_code != 200:
+        detail = resp.text[:500]
+        logger.error("[worldgen] Service error %s: %s", resp.status_code, detail)
+        raise HTTPException(status_code=502, detail=f"WorldGen service: {detail}")
+
+    payload = resp.json()
+    ply_source = Path(payload["ply_path"])
+    if not ply_source.exists():
+        raise HTTPException(
+            status_code=500,
+            detail=f"WorldGen reported output at {ply_source} but file is missing",
+        )
+
+    ply_filename = f"{upload_id}.ply"
+    shutil.copy2(ply_source, OUTPUTS_DIR / ply_filename)
+
+    thumbnail_filename = f"{upload_id}{ext}"
+    shutil.copy2(upload_path, OUTPUTS_DIR / thumbnail_filename)
+
+    logger.info(
+        "[worldgen] Done in %ss — %s", payload.get("elapsed_seconds"), ply_filename
+    )
+    return JSONResponse(
+        {
+            "id": upload_id,
+            "engine": "worldgen",
+            "ply_url": f"http://localhost:8000/files/{ply_filename}",
+            "ply_filename": ply_filename,
+            "video_url": None,
+            "thumbnail_url": f"http://localhost:8000/files/{thumbnail_filename}",
+        }
+    )
 
 
 @app.post("/api/generate")
 async def generate(
     image: UploadFile = File(...),
+    engine: str = "sharp",
+    prompt: str = "",
+    pano: str = "auto",
     render_video: bool = True,
     trajectory_type: str = "rotate_forward",
     num_frames: int = 60,
     fps: int = 30,
     output_resolution: int = 0,
 ):
+    if engine not in ("sharp", "worldgen"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown engine: {engine}. Allowed: sharp, worldgen",
+        )
+
     ext = Path(image.filename or "upload.png").suffix.lower()
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(
@@ -95,6 +166,9 @@ async def generate(
         logger.info(
             "[1/5] Saved upload: %s (%d bytes)", upload_path, len(content)
         )
+
+        if engine == "worldgen":
+            return await _generate_worldgen(upload_path, upload_id, ext, prompt, pano)
 
         # Call the Gradio app's run_sharp function
         # Inputs: [image_in, trajectory, output_res, frames, fps_in, render_toggle]

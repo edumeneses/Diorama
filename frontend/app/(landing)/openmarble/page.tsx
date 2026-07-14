@@ -14,7 +14,12 @@ import {
   type StreetViewInputHandle,
 } from '@/components/marble/street-view-input'
 import { currentJobAtom } from '@/lib/marble-atoms'
-import { generateWorld, generateImageFromText, extractImageFromUrl } from '@/lib/api'
+import {
+  generateWorld,
+  generateImageFromText,
+  extractImageFromUrl,
+  type Engine,
+} from '@/lib/api'
 import { cn } from '@/lib/utils'
 
 type InputMode = 'image' | 'text' | 'maps' | 'url'
@@ -23,6 +28,7 @@ export default function CreatePage() {
   const router = useRouter()
   const [job, setJob] = useAtom(currentJobAtom)
   const [mode, setMode] = useState<InputMode>('image')
+  const [engine, setEngine] = useState<Engine>('sharp')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [textPrompt, setTextPrompt] = useState('')
@@ -92,7 +98,10 @@ export default function CreatePage() {
       setJob((prev) =>
         prev ? { ...prev, status: 'processing' } : null,
       )
-      const result = await generateWorld(imageFile)
+      const result = await generateWorld(imageFile, {
+        engine,
+        prompt: mode === 'text' ? textPrompt.trim() : undefined,
+      })
       setJob((prev) =>
         prev
           ? {
@@ -119,7 +128,7 @@ export default function CreatePage() {
           : null,
       )
     }
-  }, [mode, selectedFile, textPrompt, urlInput, previewUrl, streetViewReady, setJob, router])
+  }, [mode, engine, selectedFile, textPrompt, urlInput, previewUrl, streetViewReady, setJob, router])
 
   const canGenerate =
     mode === 'image'
@@ -341,6 +350,39 @@ export default function CreatePage() {
               </Text>
             </Material>
           )}
+
+          {/* Engine Selector */}
+          <Material
+            thickness="thinnest"
+            className="flex items-center gap-1 p-1 px-4"
+          >
+            <button
+              type="button"
+              onClick={() => setEngine('sharp')}
+              className={cn(
+                'flex flex-col items-center rounded-full px-5 py-2 transition-colors',
+                engine === 'sharp'
+                  ? 'bg-white/15 text-white'
+                  : 'text-white/50 hover:text-white/80',
+              )}
+            >
+              <span className="text-sm font-medium">3D Photo</span>
+              <span className="text-xs opacity-60">SHARP · ~15 s</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setEngine('worldgen')}
+              className={cn(
+                'flex flex-col items-center rounded-full px-5 py-2 transition-colors',
+                engine === 'worldgen'
+                  ? 'bg-white/15 text-white'
+                  : 'text-white/50 hover:text-white/80',
+              )}
+            >
+              <span className="text-sm font-medium">360° World</span>
+              <span className="text-xs opacity-60">WorldGen · ~1 min</span>
+            </button>
+          </Material>
 
           {/* Generate Button */}
           {canGenerate && (
