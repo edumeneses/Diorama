@@ -1,0 +1,151 @@
+diff --git a/src/worldgen/pano_depth.py b/src/worldgen/pano_depth.py
+index 992c4b4..7ca419b 100644
+--- a/src/worldgen/pano_depth.py
++++ b/src/worldgen/pano_depth.py
+@@ -1,11 +1,50 @@
++import math
++
+ import torch
+ import numpy as np
+ from PIL import Image
+ from da2.model.spherevit import SphereViT
+ from .utils.general_utils import pano_unit_rays
+ 
++# Assumed horizontal FOV for perspective inputs. UniK3D used to estimate the
++# camera; DA-2 doesn't, so we assume a typical photo FOV. Affects how large
++# the input appears in the panorama, not correctness of the fill.
++PERSPECTIVE_HFOV_DEG = 65.0
++
++
++def perspective_unit_rays(h: int, w: int, device, hfov_deg: float = PERSPECTIVE_HFOV_DEG):
++    """Pinhole camera rays (+z forward, x right, y down) matching the
++    equirectangular convention used by map_image_to_pano (phi = atan2(x, z),
++    theta = asin(y))."""
++    fx = (w / 2.0) / math.tan(math.radians(hfov_deg) / 2.0)
++    v, u = torch.meshgrid(
++        torch.arange(h, device=device, dtype=torch.float32),
++        torch.arange(w, device=device, dtype=torch.float32),
++        indexing="ij",
++    )
++    x = (u - (w - 1) / 2.0) / fx
++    y = (v - (h - 1) / 2.0) / fx
++    z = torch.ones_like(x)
++    rays = torch.stack((x, y, z), dim=-1)
++    return torch.nn.functional.normalize(rays, dim=-1)
++
+ MAX_DISTANCE = 20.0  # Scale DA-2's scale-invariant output so max distance = 20 meters
+ 
++
++def _normalize_distance(distance: torch.Tensor) -> torch.Tensor:
++    """Map DA-2's scale-invariant output to (0, MAX_DISTANCE].
++
++    Normalizing by the raw max is fragile: a handful of outlier predictions
++    (common on diffusion-generated panoramas) compresses the whole scene into
++    a tiny ball around the origin. Use the 99th percentile as the reference
++    scale and clamp the outlier tail instead.
++    """
++    ref = torch.quantile(distance.flatten(), 0.99)
++    if not torch.isfinite(ref) or ref <= 0:
++        ref = distance.max().clamp(min=1e-6)
++    distance = distance / ref * MAX_DISTANCE
++    return distance.clamp(max=MAX_DISTANCE * 1.25)
++
+ # Default config matching DA-2's inference settings
+ DA2_CONFIG = {
+     "inference": {
+@@ -51,7 +90,7 @@ def pred_pano_depth(model, image: Image.Image):
+         distance = model(rgb)  # (1, H, W)
+ 
+     distance = distance.squeeze(0).float()  # (H, W)
+-    distance = distance / distance.max() * MAX_DISTANCE
++    distance = _normalize_distance(distance)
+     h, w = distance.shape
+     rays = pano_unit_rays(h, w, model.device)  # (H, W, 3)
+ 
+@@ -76,9 +115,9 @@ def pred_depth(model, image: Image.Image):
+         distance = model(rgb)  # (1, H, W)
+ 
+     distance = distance.squeeze(0).float()  # (H, W)
+-    distance = distance / distance.max() * MAX_DISTANCE
++    distance = _normalize_distance(distance)
+     h, w = distance.shape
+-    rays = pano_unit_rays(h, w, model.device)  # (H, W, 3)
++    rays = perspective_unit_rays(h, w, model.device)  # (H, W, 3) pinhole rays for perspective input
+ 
+     rgb_out = torch.tensor(np.array(image.resize((w, h))), device=model.device)
+ 
+diff --git a/src/worldgen/utils/general_utils.py b/src/worldgen/utils/general_utils.py
+index 00e1c97..97752c4 100644
+--- a/src/worldgen/utils/general_utils.py
++++ b/src/worldgen/utils/general_utils.py
+@@ -94,19 +94,34 @@ def pano_unit_rays(h, w, device):
+     z = torch.cos(theta) * torch.cos(phi)
+     return torch.stack((x, y, z), dim=-1)                    # (h,w,3)
+ 
+-def batch_nearest_dot(src_dirs, query_dirs, batch=8192):
++def batch_nearest_dot(src_dirs, query_dirs, batch=4096, src_batch=131072):
+     """
+     For each query vector find the index of the source vector with the
+     largest dot product.  Works on CUDA or CPU.
++
++    Chunks over both query and source dims with a running max so the
++    similarity matrix never exceeds batch*src_batch elements (~2 GiB
++    fp32 with the defaults), instead of materialising (b, N) at once.
+     """
+     src_dirs = F.normalize(src_dirs, dim=1)
+     query_dirs = F.normalize(query_dirs, dim=1)
+     idx = []
+     for start in range(0, query_dirs.shape[0], batch):
+         q = query_dirs[start:start + batch]                      # (b,3)
+-        sim = torch.mm(q, src_dirs.t())                          # (b,N)
+-        idx.append(sim.argmax(dim=1))
+-    return torch.cat(idx, dim=0)    
++        best_val = None
++        best_idx = None
++        for s in range(0, src_dirs.shape[0], src_batch):
++            sim = torch.mm(q, src_dirs[s:s + src_batch].t())     # (b,<=src_batch)
++            val, ind = sim.max(dim=1)
++            ind += s
++            if best_val is None:
++                best_val, best_idx = val, ind
++            else:
++                better = val > best_val
++                best_val = torch.where(better, val, best_val)
++                best_idx = torch.where(better, ind, best_idx)
++        idx.append(best_idx)
++    return torch.cat(idx, dim=0)
+ 
+ def fill_mask_from_contour(mask):
+     mask_np = mask.squeeze(0).cpu().numpy().astype(np.uint8)
+diff --git a/src/worldgen/utils/splat_utils.py b/src/worldgen/utils/splat_utils.py
+index 1096cc4..a40983b 100644
+--- a/src/worldgen/utils/splat_utils.py
++++ b/src/worldgen/utils/splat_utils.py
+@@ -25,8 +25,11 @@ class SplatFile:
+         xyz = self.centers
+         normals = np.zeros_like(xyz)
+         f_dc = (self.rgbs - 0.5) / 0.28209479177387814 # convert to SH coefficients
+-        opacities = self.opacities
+-        scale = np.log(self.scales)
++        # Standard 3DGS ply stores opacity pre-sigmoid (logit); ours is linear
++        # [0, 1]. Convert so SuperSplat/GaussianSplats3D render it correctly.
++        clamped = np.clip(self.opacities, 1e-4, 1 - 1e-4)
++        opacities = np.log(clamped / (1 - clamped))
++        scale = np.log(np.clip(self.scales, 1e-9, None))
+         rotation = self.rotations
+ 
+         attribute_names = ['x', 'y', 'z', 'nx', 'ny', 'nz']
+@@ -82,8 +85,11 @@ def convert_rgbd_to_gs(rgb, distance, rays, dis_threshold=0., epsilon=1e-3, scal
+ 
+     delta_phi = 2 * torch.pi / W
+     delta_theta = torch.pi / H
+-    sigma_x = valid_distance * delta_phi * torch.sin(valid_theta) * scale_factor
+-    sigma_y = valid_distance * delta_theta * scale_factor
++    # Floor sigma_x at epsilon: sin(theta) is 0 at the poles, and a zero scale
++    # becomes log(0) = -inf/NaN in the saved ply, which breaks standard
++    # gaussian-splat viewers.
++    sigma_x = (valid_distance * delta_phi * torch.sin(valid_theta) * scale_factor).clamp(min=epsilon)
++    sigma_y = (valid_distance * delta_theta * scale_factor).clamp(min=epsilon)
+     sigma_z = torch.ones_like(valid_distance) * epsilon
+ 
+     S = torch.stack([sigma_x, sigma_y, sigma_z], dim=1)
