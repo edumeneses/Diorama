@@ -56,9 +56,12 @@ def get_model():
     if _model is None:
         from worldgen import WorldGen
 
-        logger.info("Loading WorldGen (mode=i2s) ...")
+        # SHARP-refined splats (upstream's higher-quality path) need more than
+        # 16 GB once FLUX + DA-2 + SHARP are all resident — off by default.
+        use_sharp = os.getenv("WORLDGEN_USE_SHARP", "0") == "1"
+        logger.info("Loading WorldGen (mode=i2s, use_sharp=%s) ...", use_sharp)
         t0 = time.time()
-        _model = WorldGen(mode="i2s", device=torch.device("cuda"))
+        _model = WorldGen(mode="i2s", use_sharp=use_sharp, device=torch.device("cuda"))
         logger.info("WorldGen loaded in %.1fs", time.time() - t0)
     return _model
 
@@ -87,6 +90,7 @@ async def generate(
     image: UploadFile = File(...),
     prompt: str = Form(""),
     pano: str = Form("auto"),
+    format: str = Form("splat"),
 ):
     """Generate a splat world.
 
@@ -95,9 +99,14 @@ async def generate(
     The pano path feeds the image straight to depth+splatting, skipping the
     FLUX panorama diffusion — much faster, and the whole 360° comes from the
     upload instead of being hallucinated.
+
+    `format` — "splat" (default): 3D Gaussian splat .ply; "mesh": vertex-
+    colored triangle mesh .glb (openable in Blender & any DCC tool).
     """
     if pano not in ("auto", "true", "false"):
         raise HTTPException(status_code=400, detail="pano must be auto|true|false")
+    if format not in ("splat", "mesh"):
+        raise HTTPException(status_code=400, detail="format must be splat|mesh")
 
     data = await image.read()
     try:
@@ -129,19 +138,27 @@ async def generate(
         pil_image = pil_image.resize(new_size, Image.LANCZOS)
 
     job_id = uuid.uuid4().hex[:12]
-    out_path = OUTPUTS_DIR / f"{job_id}.ply"
+    as_mesh = format == "mesh"
+    out_path = OUTPUTS_DIR / (f"{job_id}.glb" if as_mesh else f"{job_id}.ply")
 
     with _lock:
         model = get_model()
-        logger.info("[%s] generating (input %dx%d, pano=%s, prompt=%r)",
-                    job_id, pil_image.width, pil_image.height, is_pano, prompt[:80])
+        logger.info("[%s] generating (input %dx%d, pano=%s, format=%s, prompt=%r)",
+                    job_id, pil_image.width, pil_image.height, is_pano, format, prompt[:80])
         t0 = time.time()
         try:
             if is_pano:
-                splat = model._generate_world(pano_image=pil_image)
+                result = model._generate_world(pano_image=pil_image, return_mesh=as_mesh)
             else:
-                splat = model.generate_world(prompt=prompt, image=pil_image)
-            splat.save(str(out_path))
+                result = model.generate_world(prompt=prompt, image=pil_image, return_mesh=as_mesh)
+            if as_mesh:
+                import open3d as o3d
+
+                ok = o3d.io.write_triangle_mesh(str(out_path), result)
+                if not ok or not out_path.exists():
+                    raise RuntimeError(f"open3d failed to write {out_path}")
+            else:
+                result.save(str(out_path))
         except torch.OutOfMemoryError:
             # An OOM mid-pipeline strands CPU-offloaded modules on the GPU and
             # wedges the process (every later job then OOMs too). Tear the
@@ -176,7 +193,8 @@ async def generate(
                 job_id, elapsed, out_path, out_path.stat().st_size / 2**20)
     return {
         "id": job_id,
-        "ply_path": str(out_path),
+        "ply_path": str(out_path),  # historical name; .glb when format=mesh
+        "format": format,
         "elapsed_seconds": round(elapsed, 1),
         "pano": is_pano,
     }

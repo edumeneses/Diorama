@@ -87,7 +87,12 @@ async def health():
 
 
 async def _generate_worldgen(
-    upload_path: Path, upload_id: str, ext: str, prompt: str, pano: str = "auto"
+    upload_path: Path,
+    upload_id: str,
+    ext: str,
+    prompt: str,
+    pano: str = "auto",
+    format: str = "splat",
 ) -> JSONResponse:
     """Route a generation to the WorldGen service (engine #2, 360° worlds)."""
     logger.info("[worldgen] Sending %s to %s ...", upload_path, WORLDGEN_URL)
@@ -96,7 +101,7 @@ async def _generate_worldgen(
             resp = await hc.post(
                 f"{WORLDGEN_URL}/generate",
                 files={"image": (upload_path.name, f)},
-                data={"prompt": prompt, "pano": pano},
+                data={"prompt": prompt, "pano": pano, "format": format},
             )
     if resp.status_code != 200:
         detail = resp.text[:500]
@@ -111,7 +116,8 @@ async def _generate_worldgen(
             detail=f"WorldGen reported output at {ply_source} but file is missing",
         )
 
-    ply_filename = f"{upload_id}.ply"
+    # Keep the service's extension: .ply for splats, .glb for meshes.
+    ply_filename = f"{upload_id}{ply_source.suffix}"
     shutil.copy2(ply_source, OUTPUTS_DIR / ply_filename)
 
     thumbnail_filename = f"{upload_id}{ext}"
@@ -138,6 +144,7 @@ async def generate(
     engine: str = "sharp",
     prompt: str = "",
     pano: str = "auto",
+    format: str = "splat",
     render_video: bool = True,
     trajectory_type: str = "rotate_forward",
     num_frames: int = 60,
@@ -168,7 +175,7 @@ async def generate(
         )
 
         if engine == "worldgen":
-            return await _generate_worldgen(upload_path, upload_id, ext, prompt, pano)
+            return await _generate_worldgen(upload_path, upload_id, ext, prompt, pano, format)
 
         # Call the Gradio app's run_sharp function
         # Inputs: [image_in, trajectory, output_res, frames, fps_in, render_toggle]

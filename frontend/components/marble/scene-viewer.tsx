@@ -219,9 +219,35 @@ const SceneViewer = forwardRef<SceneViewerHandle, SceneViewerProps>(
         }
         internalsRef.current = internals
 
+        // WASD fly navigation (world mode): move camera and orbit target
+        // together so dragging still means "look around" from the new spot.
+        const moveKeys = { w: false, a: false, s: false, d: false, q: false, e: false, shift: false }
+        const _fwd = new THREE.Vector3()
+        const _right = new THREE.Vector3()
+        const _up = new THREE.Vector3(0, 1, 0)
+
+        function applyMovement() {
+          if (!worldMode) return
+          const speed = moveKeys.shift ? 0.25 : 0.08
+          camera.getWorldDirection(_fwd)
+          _right.crossVectors(_fwd, _up).normalize()
+          const delta = new THREE.Vector3()
+          if (moveKeys.w) delta.addScaledVector(_fwd, speed)
+          if (moveKeys.s) delta.addScaledVector(_fwd, -speed)
+          if (moveKeys.d) delta.addScaledVector(_right, speed)
+          if (moveKeys.a) delta.addScaledVector(_right, -speed)
+          if (moveKeys.e) delta.addScaledVector(_up, speed)
+          if (moveKeys.q) delta.addScaledVector(_up, -speed)
+          if (delta.lengthSq() > 0) {
+            camera.position.add(delta)
+            orbitControls.target.add(delta)
+          }
+        }
+
         // Render loop
         function animate() {
           internals.animFrameId = requestAnimationFrame(animate)
+          applyMovement()
           orbitControls.update()
           if (internals.splatViewer) {
             internals.splatViewer.update()
@@ -279,6 +305,7 @@ const SceneViewer = forwardRef<SceneViewerHandle, SceneViewerProps>(
         renderer.domElement.addEventListener('pointerdown', onPointerDown)
 
         // Keyboard shortcuts: W=translate, E=rotate, R=scale, Esc=deselect, Delete=remove
+        // In world mode with nothing selected, WASD+QE fly the camera instead.
         function onKeyDown(event: KeyboardEvent) {
           // Don't capture keys if user is typing in an input
           if (
@@ -286,6 +313,18 @@ const SceneViewer = forwardRef<SceneViewerHandle, SceneViewerProps>(
             event.target instanceof HTMLTextAreaElement
           )
             return
+
+          const key = event.key.toLowerCase()
+          if (worldMode && !internals.selectedId) {
+            if (key in moveKeys) {
+              moveKeys[key as keyof typeof moveKeys] = true
+              return
+            }
+            if (key === 'shift') {
+              moveKeys.shift = true
+              return
+            }
+          }
 
           switch (event.key.toLowerCase()) {
             case 'w':
@@ -320,7 +359,13 @@ const SceneViewer = forwardRef<SceneViewerHandle, SceneViewerProps>(
               break
           }
         }
+        function onKeyUp(event: KeyboardEvent) {
+          const key = event.key.toLowerCase()
+          if (key in moveKeys) moveKeys[key as keyof typeof moveKeys] = false
+          if (key === 'shift') moveKeys.shift = false
+        }
         window.addEventListener('keydown', onKeyDown)
+        window.addEventListener('keyup', onKeyUp)
 
         setLoading(false)
         onReady?.()
@@ -328,6 +373,7 @@ const SceneViewer = forwardRef<SceneViewerHandle, SceneViewerProps>(
         // Cleanup
         return () => {
           window.removeEventListener('keydown', onKeyDown)
+          window.removeEventListener('keyup', onKeyUp)
           resizeObserver.disconnect()
           renderer.domElement.removeEventListener('pointerdown', onPointerDown)
           cancelAnimationFrame(internals.animFrameId)

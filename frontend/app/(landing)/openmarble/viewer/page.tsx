@@ -161,6 +161,16 @@ function ViewerContent() {
             onModeChange={handleModeChange}
             hasSelection={selectedModelId !== null}
           />
+          {worldMode && selectedModelId === null && (
+            <Material
+              thickness="thinnest"
+              className="absolute bottom-4 left-1/2 z-20 -translate-x-1/2 px-4 py-1.5"
+            >
+              <Text size="caption2" variant="tertiary">
+                Drag to look · WASD to move · Q/E down/up · Shift = fast
+              </Text>
+            </Material>
+          )}
         </div>
       </Stack>
       <AssetPanel
